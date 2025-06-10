@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+        - name: kube-rbac-proxy
+          image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+          args:
+            - "--secure-listen-address=[::]:8443"
+            - "--upstream=http://[::]:8084/"
+            # - "--secure-listen-address=0.0.0.0:8443"
+            # - "--upstream=http://0.0.0.0:8084/"
+            - "--logtostderr=true"
+            - "--v=0"
+          ports:
+            - containerPort: 8543
+              protocol: TCP
+              name: https
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 5m
+              memory: 64Mi
+        - name: manager
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+          args:
+            - "--health-probe-bind-address=[::]:8085"
+            - "--metrics-bind-address=[::]:8084"
+            # - "--health-probe-bind-address=0.0.0.0:8085"
+            # - "--metrics-bind-address=0.0.0.0:8084"
+            - "--leader-elect"
+          ports:
+            - containerPort: 8085
+              protocol: TCP
+              name: health-probe
+            - containerPort: 8084
+              protocol: TCP
+              name: metrics
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 5m
+              memory: 64Mi

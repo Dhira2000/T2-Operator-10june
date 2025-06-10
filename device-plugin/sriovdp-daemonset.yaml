@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sriov-device-plugin
+  # namespace: {{ .Namespace }}
+  namespace: kube-system
+
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sriov-device-plugin
+  namespace: kube-system
+  labels:
+    tier: node
+    app: sriovdp
+spec:
+  selector:
+    matchLabels:
+      name: sriov-device-plugin
+  template:
+    metadata:
+      labels:
+        name: sriov-device-plugin
+        tier: node
+        app: sriovdp
+    spec:
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      serviceAccountName: sriov-device-plugin
+      containers:
+      - name: kube-sriovdp
+        #image: dhiraj30/device-plugin:ft
+        image: quay.io/amdaecgt2/amd-t2-device-plugin-ocp:v25.3.2
+        #image: quay.io/amdaecgt2/device-plugin:v1
+        #image: quay.io/amdaecgt2/amd-t2-device-plugin-ocp:v1.0.10
+        #image: quay.io/amdaecgt2/amd-t2-device-plugin-ocp:latest
+        #image: ghcr.io/k8snetworkplumbingwg/sriov-network-device-plugin:latest
+        imagePullSecrets:
+        - name: amdaecgt2-secret-device
+        imagePullPolicy: IfNotPresent
+        args:
+        - --log-dir=sriovdp
+        - --log-level=10
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: devicesock
+          mountPath: /var/lib/kubelet/
+          readOnly: false
+        - name: log
+          mountPath: /var/log
+        - name: config-volume
+          mountPath: /etc/pcidp
+      volumes:
+        - name: devicesock
+          hostPath:
+            path: /var/lib/kubelet/
+        - name: log
+          hostPath:
+            path: /var/log
+        - name: config-volume
+          configMap:
+            name: sriovdp-config
+            items:
+            - key: config.json
+              path: config.json

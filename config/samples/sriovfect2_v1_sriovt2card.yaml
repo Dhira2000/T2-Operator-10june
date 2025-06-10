@@ -1,0 +1,65 @@
+apiVersion: sriovfect2.amd.com/v1
+kind: SriovT2Card
+metadata:
+  labels:
+    app.kubernetes.io/name: sriovt2card
+    app.kubernetes.io/instance: sriovt2card-sample
+    app.kubernetes.io/part-of: t2-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: t2-operator
+  name: sriovt2card
+  namespace: amd-xilinx-t2
+spec:
+  # adminMode: false
+  nodeSelector:
+    kubernetes.io/hostname: api.teleco-t2-sn.amd.com
+  acceleratorSelector:
+    pciAddress: 0000:01:00.0
+  physicalFunction:
+    pfDriver: "vfio_pci"
+    vfDriver: "vfio_pci"
+    vfAmount: 1
+  selector:
+    matchLabels:
+      app: dpdk
+  template:
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: redhat-non-root-container
+          image: hitendramhatre/amd-xilinx-t2-3.3id3:v1.2
+          securityContext:
+            privileged: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+            capabilities:
+              add: ["SYS_ADMIN", "SYS_RAWIO", "SYS_NICE", "NET_ADMIN", "IPC_LOCK"]
+              #add: ["IPC_LOCK", "SYS_NICE"]
+          command: ["sleep", "infinity"]
+          volumeMounts:
+          - mountPath: /hugepages-2Mi
+            name: hugepage-2mi
+          - mountPath: /hugepages-1Gi
+            name: hugepage-1gi
+          resources:
+            limits:
+              hugepages-2Mi: 512Mi
+              hugepages-1Gi: 1Gi
+              memory: 10Gi
+              cpu: "4"
+              amd.com/amd_xilinx_t2: 1
+            requests:
+              hugepages-2Mi: 512Mi
+              hugepages-1Gi: 1Gi
+              memory: 10Gi
+              cpu: "4"
+              amd.com/amd_xilinx_t2: 1
+      volumes:
+      - name: hugepage-2mi
+        emptyDir:
+          medium: HugePages-2Mi
+      - name: hugepage-1gi
+        emptyDir:
+          medium: HugePages-1Gi
